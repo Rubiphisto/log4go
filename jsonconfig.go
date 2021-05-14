@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
-
-	"github.com/toolkits/file"
 )
 
 type ConsoleConfig struct {
@@ -65,7 +64,7 @@ func (log Logger) LoadJsonConfiguration(filename string) {
 	dst := new(bytes.Buffer)
 	var (
 		lc      LogConfig
-		content string
+		content []byte
 	)
 	err := json.Compact(dst, []byte(filename))
 
@@ -76,10 +75,10 @@ func (log Logger) LoadJsonConfiguration(filename string) {
 			os.Exit(1)
 		}
 	} else {
-		content = string(dst.Bytes())
+		content = dst.Bytes()
 	}
 
-	err = json.Unmarshal([]byte(content), &lc)
+	err = json.Unmarshal(content, &lc)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "LoadJsonConfiguration: Error: Could not parse json configuration in %q: %s\n", filename, err)
 		os.Exit(1)
@@ -224,19 +223,16 @@ func jsonToSocketLogWriter(filename string, sf *SocketConfig) (SocketLogWriter, 
 	return NewSocketLogWriter(protocol, endpoint), true
 }
 
-func ReadFile(path string) (string, error) {
-	if path == "" {
-		return "", fmt.Errorf("[%s] path empty", path)
-	}
-
-	if !file.IsExist(path) {
-		return "", fmt.Errorf("config file %s is nonexistent", path)
-	}
-
-	configContent, err := file.ToTrimString(path)
+func ReadFile(path string) ([]byte, error) {
+	fd, err := os.Open(path)
 	if err != nil {
-		return "", fmt.Errorf("read file %s fail %s", path, err)
+		return nil, fmt.Errorf("config file %s is nonexistent", path)
 	}
 
-	return configContent, nil
+	contents, err := ioutil.ReadAll(fd)
+	if err != nil {
+		return nil, fmt.Errorf("read file %s fail %s", path, err)
+	}
+
+	return contents, nil
 }
